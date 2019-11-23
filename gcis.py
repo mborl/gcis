@@ -21,7 +21,7 @@ class gcis:
         self.__DB_HOST             = None
         self.__DB_USER             = None
         self.__DB_PASSWORD         = None
-        self.__DB_SCHEMA           = None
+        self.__DATABASE            = None
         self.__INPUT_DIRECTORY     = None
         self.__FTP_HOST            = None
         self.__FTP_INPUT_DIRECTORY = None
@@ -30,7 +30,7 @@ class gcis:
         
         self._interface         = ghcnInterface(self.__FTP_HOST, self.__FTP_INPUT_DIRECTORY, self.__INPUT_DIRECTORY)
 #        self.parser             = dlyParser(self.__ELEMENTS)
-        self._dbLoader          = dataLoader(self.__INPUT_DIRECTORY, self.__ELEMENTS, self.__DB_HOST, self.__DB_USER, self.__DB_PASSWORD, self.__DB_SCHEMA)
+        self._dbLoader          = dataLoader(self.__INPUT_DIRECTORY, self.__ELEMENTS, self.__DB_HOST, self.__DB_USER, self.__DB_PASSWORD, self.__DATABASE)
         self._newLocationLoader = geonameInserter()
         
     
@@ -56,8 +56,8 @@ class gcis:
                     elif variable == 'DB_PASSWORD':
                         self.__DB_PASSWORD = value
                     
-                    elif variable == 'DB_SCHEMA':
-                        self.__DB_PASSWORD = value
+                    elif variable == 'DATABASE':
+                        self.__DATABASE = value
                     
                     elif variable == 'INPUT_DIRECTORY':
                         self.__INPUT_DIRECTORY = value
@@ -94,12 +94,10 @@ class gcis:
     # truncate tables and then repopulate tables 
     def update_db(self):
         # update stations
-        
+        self._dbLoader.initialLoad()
         # update countries
         
         # update climate data
-        
-        pass
     
     
     # add new geonames; uses geonameInserter 
@@ -119,4 +117,4 @@ class InvalidConfigFormat(Exception):
 
 
 gcisInstance = gcis()
-gcisInstance.update_local()
+gcisInstance.update_db()

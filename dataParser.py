@@ -21,11 +21,13 @@ class dataParser():
 
     # open stations file and return stream
     def getStations(self):
+        stream = ''
+        
         with open(self.__REFERENCE_DIRECTORY+'ghcnd-stations.txt', 'r') as file:
             indices = OrderedDict()
             indices['ID']           =   [0, 11]
             indices['LATITUDE']     =   [12, 20]
-            indices['LATITUDE']     =   [21, 30]
+            indices['LONGITUDE']    =   [21, 30]
             indices['ELEVATION']    =   [31, 37]
             indices['STATE']        =   [38, 40]
             indices['NAME']         =   [41, 71]
@@ -33,7 +35,6 @@ class dataParser():
             indices['HCN/CRN FLAG'] =   [76, 79]
             indices['WMO:ID']       =   [80, 85]
             
-            stream = ''
             
             # create csv file stream 
             for line in file:
@@ -49,20 +50,26 @@ class dataParser():
                         row += ','
                 
                 stream += row
-            
-            return stream
+        return stream
             
             
             
     # open country file and return stream
     def getCountries(self):
+        stream = '' 
+        
         with open(self.__REFERENCE_DIRECTORY+'ghcnd-countries.txt', 'r') as file:
-            pass
+            for line in file: 
+                countryId = line[:2]
+                countryName = line[3:]
+                stream += (countryId + ',' + countryName.strip() + '\n')
+            
+        return stream
+
+
 
     # open geoname file and return stream
     def getGeonames(self):
         with open(self.__REFERENCE_DIRECTORY+'geonames.csv', 'r') as file:
             pass
         
-test = dataParser('/home/matthew/data/ghcnd_local_test')
-test1 = test.getStations()
