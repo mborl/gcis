@@ -24,10 +24,10 @@ def main():
         """
         gcis_instance = gcis()
         # Initial Data Load 
-        if args[0] == '-h':
+        if str(args[0]) == '-h':
             print(HELP_MESSAGE)
 
-        elif args[0] == '-i':
+        elif str(args[0]) == '-i':
             gcis_instance.init()
 
         elif args[0] == '-u':
@@ -39,10 +39,10 @@ def main():
     except getopt.error as argError:
         print(str(argError))
         print(HELP_MESSAGE)
+        print('arg')
 
-    except IndexError as indexError:
-        print(HELP_MESSAGE)
-
+    except KeyboardInterrupt:
+        print(' Process killed by user')
 
 if __name__ == "__main__":
     main()

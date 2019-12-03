@@ -30,79 +30,18 @@ class dataLoader:
 
         # Create gcis schema
         create = """
-        create schema gcis;
-
-        alter schema gcis owner to {};
-
-        create table "Country"
-        (
-            "CountryID" varchar(20) not null
-                constraint "Country_pkey"
-                    primary key,
-            "CountryName" varchar(100) not null
-        );
+        CREATE SCHEMA gcis;
         
-        alter table "Country" owner to {};
         
-        create table "Station"
-        (
-            "StationKey" serial not null
-                constraint "Station_pkey"
-                    primary key,
-            "StationID" varchar(50) not null,
-            "StationName" varchar(100),
-            "SLongitude" real not null,
-            "SLatitude" real not null,
-            "SElevation" real not null,
-            "CountryID" varchar(2) not null
-                constraint country___fk
-                    references "Country"
-                        on update cascade
-        );
+        ALTER SCHEMA gcis OWNER TO {};
         
-        alter table "Station" owner to {}};
+        --
+        -- Name: calculatedistance(integer, character varying); Type: FUNCTION; Schema: gcis; Owner: {}
+        --
         
-        create table "Climate"
-        (
-            "ClimateID" serial not null
-                constraint "Climate_pkey"
-                    primary key,
-            "StationID" varchar(20) not null
-                constraint station__fk
-                    references "Station" ("StationID")
-                        on update cascade on delete cascade,
-            "DATE" date not null,
-            "ELEMENT" varchar(10) not null,
-            "VALUE" integer not null
-        );
-        
-        alter table "Climate" owner to {}};
-        
-        create unique index station_stationid_uindex
-            on "Station" ("StationID");
-        
-        create table "Geoname"
-        (
-            "GeonameID" integer not null
-                constraint geoname_pk
-                    primary key,
-            "LocationName" varchar(100),
-            "CountryID" varchar(5)
-                constraint country__fk
-                    references "Country"
-                        on update cascade on delete restrict,
-            "Latitude" integer,
-            "Longitude" integer,
-            "Elevation" integer
-        );
-        
-        alter table "Geoname" owner to {}};
-        
-        create unique index "Geoname_""GeonameID""_uindex"
-            on "Geoname" ("GeonameID");
-        DROP FUNCTION IF EXISTS gcis.calculateDistance(gID INT, sID VARCHAR(50));
-
-        CREATE FUNCTION gcis.calculateDistance(gID INT, sID VARCHAR(50)) RETURNS REAL AS $$
+        CREATE FUNCTION gcis.calculatedistance(gid integer, sid character varying) RETURNS real
+            LANGUAGE plpgsql
+            AS $$
             DECLARE
                 gLat REAL;                  -- latitude of geoname
                 gLon REAL;                  -- longitude of geoname
@@ -125,6 +64,7 @@ class dataLoader:
                 INTO gLat, gLon;
         
                 -- get geographical information for station
+        
                 SELECT "SLatitude", "SLongitude"
                 FROM gcis."Station"
                 WHERE "StationID" = sID
@@ -147,12 +87,14 @@ class dataLoader:
                 RETURN distance;
         
             END;
-        $$
+        $$;
         
-        LANGUAGE PLPGSQL;
         
-        DROP FUNCTION IF EXISTS gcis.findstation(id integer);
-        CREATE FUNCTION findStation(id INT) RETURNS VARCHAR(50) AS $$
+        ALTER FUNCTION gcis.calculatedistance(gid integer, sid character varying) OWNER TO {};
+        
+        CREATE FUNCTION gcis.findstation(id integer) RETURNS character varying
+            LANGUAGE plpgsql
+            AS $$
             DECLARE
                 gCountry VARCHAR(100);      -- country of geoname
                 nearestStation VARCHAR(50); -- current nearest station
@@ -177,11 +119,133 @@ class dataLoader:
         
         
                 RETURN nearestStation;
-            END;  $$
+            END;  $$;
         
-        LANGUAGE PLPGSQL;
-
-        """.format(self.__USER)
+        
+        ALTER FUNCTION gcis.findstation(id integer) OWNER TO {};
+        
+        SET default_tablespace = '';
+        
+        SET default_with_oids = false;
+        
+        --
+        -- Name: Climate; Type: TABLE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE TABLE gcis."Climate" (
+            "ClimateID" integer NOT NULL,
+            "StationID" character varying(20) NOT NULL,
+            "DATE" date NOT NULL,
+            "ELEMENT" character varying(10) NOT NULL,
+            "VALUE" integer NOT NULL
+        );
+        
+        
+        ALTER TABLE gcis."Climate" OWNER TO {};
+        
+        --
+        -- Name: Climate_ClimateID_seq; Type: SEQUENCE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE SEQUENCE gcis."Climate_ClimateID_seq"
+            AS integer
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1;
+        
+        
+        ALTER TABLE gcis."Climate_ClimateID_seq" OWNER TO {};
+        
+        --
+        -- Name: Climate_ClimateID_seq; Type: SEQUENCE OWNED BY; Schema: gcis; Owner: {}
+        --
+        
+        ALTER SEQUENCE gcis."Climate_ClimateID_seq" OWNED BY gcis."Climate"."ClimateID";
+        
+        
+        --
+        -- Name: Country; Type: TABLE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE TABLE gcis."Country" (
+            "CountryID" character varying(20) NOT NULL,
+            "CountryName" character varying(100) NOT NULL
+        );
+        
+        
+        ALTER TABLE gcis."Country" OWNER TO {};
+        
+        --
+        -- Name: Geoname; Type: TABLE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE TABLE gcis."Geoname" (
+            "GeonameID" integer NOT NULL,
+            "LocationName" character varying(100),
+            "CountryID" character varying(5),
+            "Latitude" integer,
+            "Longitude" integer,
+            "Elevation" integer
+        );
+        
+        
+        ALTER TABLE gcis."Geoname" OWNER TO {};
+        
+        --
+        -- Name: Station; Type: TABLE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE TABLE gcis."Station" (
+            "StationKey" integer NOT NULL,
+            "StationID" character varying(50) NOT NULL,
+            "StationName" character varying(100),
+            "SLongitude" real NOT NULL,
+            "SLatitude" real NOT NULL,
+            "SElevation" real NOT NULL,
+            "CountryID" character varying(2) NOT NULL
+        );
+        
+        
+        ALTER TABLE gcis."Station" OWNER TO {};
+        
+        --
+        -- Name: Station_StationKey_seq; Type: SEQUENCE; Schema: gcis; Owner: {}
+        --
+        
+        CREATE SEQUENCE gcis."Station_StationKey_seq"
+            AS integer
+            START WITH 1
+            INCREMENT BY 1
+            NO MINVALUE
+            NO MAXVALUE
+            CACHE 1;
+        
+        
+        ALTER TABLE gcis."Station_StationKey_seq" OWNER TO {};
+        
+        --
+        -- Name: Station_StationKey_seq; Type: SEQUENCE OWNED BY; Schema: gcis; Owner: {}
+        --
+        
+        ALTER SEQUENCE gcis."Station_StationKey_seq" OWNED BY gcis."Station"."StationKey";
+        
+        
+        --
+        -- Name: Climate ClimateID; Type: DEFAULT; Schema: gcis; Owner: {}
+        --
+        
+        ALTER TABLE ONLY gcis."Climate" ALTER COLUMN "ClimateID" SET DEFAULT nextval('gcis."Climate_ClimateID_seq"'::regclass);
+        
+        
+        --
+        -- Name: Station StationKey; Type: DEFAULT; Schema: gcis; Owner: {}
+        --
+        
+        ALTER TABLE ONLY gcis."Station" ALTER COLUMN "StationKey" SET DEFAULT nextval('gcis."Station_StationKey_seq"'::regclass);
+        """
+        create = re.sub('\{\}', self.__USER, create)
 
         cursor.execute(create)
         conn.commit()
@@ -320,7 +384,6 @@ class dataLoader:
 
         inserts = ""
         for row in gRows:
-            print(row)
             geonameID = row[0]
             gLoc = "'{}'".format(re.sub("'", '', row[1].strip()))  # remove apostrophes from location names
             gCountry = "'{}'".format(row[2])

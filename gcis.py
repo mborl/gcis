@@ -69,7 +69,7 @@ class gcis:
 
     # Initialize first load of data; uses dataLoader
     def init(self):
-        self._interface.update_local_ghcn()  # create local copy of ghcn files
+        #self._interface.update_local_ghcn()  # create local copy of ghcn files
         self._dbLoader.initialLoad()  # create gcis database and load data
 
     # update GCIS database with latest GHCN data; uses ghcnInterface and dataLoader
