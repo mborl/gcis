@@ -100,6 +100,87 @@ class dataLoader:
         
         create unique index "Geoname_""GeonameID""_uindex"
             on "Geoname" ("GeonameID");
+        DROP FUNCTION IF EXISTS gcis.calculateDistance(gID INT, sID VARCHAR(50));
+
+        CREATE FUNCTION gcis.calculateDistance(gID INT, sID VARCHAR(50)) RETURNS REAL AS $$
+            DECLARE
+                gLat REAL;                  -- latitude of geoname
+                gLon REAL;                  -- longitude of geoname
+        
+                sLat REAL;                  -- latitude of station
+                sLon REAL;                  -- longitude of station
+                distance REAL;              -- distance between geoname and station
+        
+                -- variables needed for distance calculation
+                dLat REAL;
+                dLon REAL;
+                x REAL;
+                y REAL;
+                EARTH_RADIUS CONSTANT REAL  := 6371;
+            BEGIN
+                -- get geographical information for geoname
+                SELECT "Latitude", "Longitude"
+                FROM gcis."Geoname"
+                WHERE "GeonameID" = gID
+                INTO gLat, gLon;
+        
+                -- get geographical information for station
+                SELECT "SLatitude", "SLongitude"
+                FROM gcis."Station"
+                WHERE "StationID" = sID
+                INTO sLat, sLon;
+        
+                -- calculation of distance using Haversine formula
+                -- (source: https://www.geeksforgeeks.org/program-distance-two-points-earth/)
+                sLat = RADIANS(sLat);
+                sLon = RADIANS(sLon);
+                gLat = RADIANS(gLat);
+                gLon = RADIANS(gLon);
+        
+                dLon = sLon - gLon;
+                dLat = sLat - gLat;
+                x = (sin(dlat / 2)^2) + (cos(sLat) * cos(gLat) * sin(dlon / 2)^2);
+        
+                y = 2 * asin(|/x);
+                distance = y * EARTH_RADIUS;
+        
+                RETURN distance;
+        
+            END;
+        $$
+        
+        LANGUAGE PLPGSQL;
+        
+        DROP FUNCTION IF EXISTS gcis.findstation(id integer);
+        CREATE FUNCTION findStation(id INT) RETURNS VARCHAR(50) AS $$
+            DECLARE
+                gCountry VARCHAR(100);      -- country of geoname
+                nearestStation VARCHAR(50); -- current nearest station
+        
+            BEGIN
+                -- narrow search of stations to appropriate country
+                SELECT "CountryID"
+                FROM gcis."Geoname"
+                WHERE "GeonameID" = id
+                INTO gCountry;
+        
+                SELECT "StationID", MIN(distance)
+                FROM (
+                    SELECT "StationID", calculatedistance(id, "StationID") AS distance
+                    FROM gcis."Station" s
+                    WHERE "CountryID" = gCountry
+                ) distances
+                GROUP BY "StationID", distance
+                ORDER BY distance ASC
+                LIMIT 1
+                INTO nearestStation;
+        
+        
+                RETURN nearestStation;
+            END;  $$
+        
+        LANGUAGE PLPGSQL;
+
         """.format(self.__USER)
 
         cursor.execute(create)

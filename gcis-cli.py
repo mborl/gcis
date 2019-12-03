@@ -43,5 +43,6 @@ def main():
     except IndexError as indexError:
         print(HELP_MESSAGE)
 
+
 if __name__ == "__main__":
     main()
