@@ -16,245 +16,36 @@ from dataParser import dataParser
 
 
 class dataLoader:
-    def __init__(self, inputDir, elements, db_host, db_user, db_pwd, db):
+    def __init__(self, inputDir, elements, db_host, db_user, db_pwd, db, createScript):
         self.__INPUT_DIRECTORY = inputDir
         self.__ELEMENTS = set(elements)
         self.__HOST = db_host
         self.__USER = db_user
         self.__PASSWORD = db_pwd
         self.__DATABASE = db
+        self.__CREATE_SCRIPT = createScript
 
     def initialLoad(self):
+        self.createSchema()
+        self.loadAll()
+
+    def createSchema(self):
         conn = psycopg2.connect(host=self.__HOST, database=self.__DATABASE, user=self.__USER, password=self.__PASSWORD)
         cursor = conn.cursor()
 
-        # Create gcis schema
-        create = """
-        CREATE SCHEMA gcis;
-        
-        
-        ALTER SCHEMA gcis OWNER TO {};
-        
-        --
-        -- Name: calculatedistance(integer, character varying); Type: FUNCTION; Schema: gcis; Owner: {}
-        --
-        
-        CREATE FUNCTION gcis.calculatedistance(gid integer, sid character varying) RETURNS real
-            LANGUAGE plpgsql
-            AS $$
-            DECLARE
-                gLat REAL;                  -- latitude of geoname
-                gLon REAL;                  -- longitude of geoname
-        
-                sLat REAL;                  -- latitude of station
-                sLon REAL;                  -- longitude of station
-                distance REAL;              -- distance between geoname and station
-        
-                -- variables needed for distance calculation
-                dLat REAL;
-                dLon REAL;
-                x REAL;
-                y REAL;
-                EARTH_RADIUS CONSTANT REAL  := 6371;
-            BEGIN
-                -- get geographical information for geoname
-                SELECT "Latitude", "Longitude"
-                FROM gcis."Geoname"
-                WHERE "GeonameID" = gID
-                INTO gLat, gLon;
-        
-                -- get geographical information for station
-        
-                SELECT "SLatitude", "SLongitude"
-                FROM gcis."Station"
-                WHERE "StationID" = sID
-                INTO sLat, sLon;
-        
-                -- calculation of distance using Haversine formula
-                -- (source: https://www.geeksforgeeks.org/program-distance-two-points-earth/)
-                sLat = RADIANS(sLat);
-                sLon = RADIANS(sLon);
-                gLat = RADIANS(gLat);
-                gLon = RADIANS(gLon);
-        
-                dLon = sLon - gLon;
-                dLat = sLat - gLat;
-                x = (sin(dlat / 2)^2) + (cos(sLat) * cos(gLat) * sin(dlon / 2)^2);
-        
-                y = 2 * asin(|/x);
-                distance = y * EARTH_RADIUS;
-        
-                RETURN distance;
-        
-            END;
-        $$;
-        
-        
-        ALTER FUNCTION gcis.calculatedistance(gid integer, sid character varying) OWNER TO {};
-        
-        CREATE FUNCTION gcis.findstation(id integer) RETURNS character varying
-            LANGUAGE plpgsql
-            AS $$
-            DECLARE
-                gCountry VARCHAR(100);      -- country of geoname
-                nearestStation VARCHAR(50); -- current nearest station
-        
-            BEGIN
-                -- narrow search of stations to appropriate country
-                SELECT "CountryID"
-                FROM gcis."Geoname"
-                WHERE "GeonameID" = id
-                INTO gCountry;
-        
-                SELECT "StationID", MIN(distance)
-                FROM (
-                    SELECT "StationID", calculatedistance(id, "StationID") AS distance
-                    FROM gcis."Station" s
-                    WHERE "CountryID" = gCountry
-                ) distances
-                GROUP BY "StationID", distance
-                ORDER BY distance ASC
-                LIMIT 1
-                INTO nearestStation;
-        
-        
-                RETURN nearestStation;
-            END;  $$;
-        
-        
-        ALTER FUNCTION gcis.findstation(id integer) OWNER TO {};
-        
-        SET default_tablespace = '';
-        
-        SET default_with_oids = false;
-        
-        --
-        -- Name: Climate; Type: TABLE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE TABLE gcis."Climate" (
-            "ClimateID" integer NOT NULL,
-            "StationID" character varying(20) NOT NULL,
-            "DATE" date NOT NULL,
-            "ELEMENT" character varying(10) NOT NULL,
-            "VALUE" integer NOT NULL
-        );
-        
-        
-        ALTER TABLE gcis."Climate" OWNER TO {};
-        
-        --
-        -- Name: Climate_ClimateID_seq; Type: SEQUENCE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE SEQUENCE gcis."Climate_ClimateID_seq"
-            AS integer
-            START WITH 1
-            INCREMENT BY 1
-            NO MINVALUE
-            NO MAXVALUE
-            CACHE 1;
-        
-        
-        ALTER TABLE gcis."Climate_ClimateID_seq" OWNER TO {};
-        
-        --
-        -- Name: Climate_ClimateID_seq; Type: SEQUENCE OWNED BY; Schema: gcis; Owner: {}
-        --
-        
-        ALTER SEQUENCE gcis."Climate_ClimateID_seq" OWNED BY gcis."Climate"."ClimateID";
-        
-        
-        --
-        -- Name: Country; Type: TABLE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE TABLE gcis."Country" (
-            "CountryID" character varying(20) NOT NULL,
-            "CountryName" character varying(100) NOT NULL
-        );
-        
-        
-        ALTER TABLE gcis."Country" OWNER TO {};
-        
-        --
-        -- Name: Geoname; Type: TABLE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE TABLE gcis."Geoname" (
-            "GeonameID" integer NOT NULL,
-            "LocationName" character varying(100),
-            "CountryID" character varying(5),
-            "Latitude" integer,
-            "Longitude" integer,
-            "Elevation" integer
-        );
-        
-        
-        ALTER TABLE gcis."Geoname" OWNER TO {};
-        
-        --
-        -- Name: Station; Type: TABLE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE TABLE gcis."Station" (
-            "StationKey" integer NOT NULL,
-            "StationID" character varying(50) NOT NULL,
-            "StationName" character varying(100),
-            "SLongitude" real NOT NULL,
-            "SLatitude" real NOT NULL,
-            "SElevation" real NOT NULL,
-            "CountryID" character varying(2) NOT NULL
-        );
-        
-        
-        ALTER TABLE gcis."Station" OWNER TO {};
-        
-        --
-        -- Name: Station_StationKey_seq; Type: SEQUENCE; Schema: gcis; Owner: {}
-        --
-        
-        CREATE SEQUENCE gcis."Station_StationKey_seq"
-            AS integer
-            START WITH 1
-            INCREMENT BY 1
-            NO MINVALUE
-            NO MAXVALUE
-            CACHE 1;
-        
-        
-        ALTER TABLE gcis."Station_StationKey_seq" OWNER TO {};
-        
-        --
-        -- Name: Station_StationKey_seq; Type: SEQUENCE OWNED BY; Schema: gcis; Owner: {}
-        --
-        
-        ALTER SEQUENCE gcis."Station_StationKey_seq" OWNED BY gcis."Station"."StationKey";
-        
-        
-        --
-        -- Name: Climate ClimateID; Type: DEFAULT; Schema: gcis; Owner: {}
-        --
-        
-        ALTER TABLE ONLY gcis."Climate" ALTER COLUMN "ClimateID" SET DEFAULT nextval('gcis."Climate_ClimateID_seq"'::regclass);
-        
-        
-        --
-        -- Name: Station StationKey; Type: DEFAULT; Schema: gcis; Owner: {}
-        --
-        
-        ALTER TABLE ONLY gcis."Station" ALTER COLUMN "StationKey" SET DEFAULT nextval('gcis."Station_StationKey_seq"'::regclass);
-        """
-        create = re.sub('\{\}', self.__USER, create)
+        # Open Create script from file
+        pathToCreateScript = open(self.__CREATE_SCRIPT, 'r')
+        create = pathToCreateScript.read()
+        pathToCreateScript.close()
+        create = re.sub('\{\}', self.__USER, create)  # make current DB user the definer for the schema
 
+        # Run Create Script
         cursor.execute(create)
         conn.commit()
 
+        # Close cursor and postgres connection
         cursor.close
         conn.close()
-
-        # populate tables
-        self.loadAll()
 
     def loadAll(self):
         self.load_countries()
@@ -279,12 +70,21 @@ class dataLoader:
         print('Tables successfully truncated')
         self.loadAll()
 
+    def deleteSchema(self):
+        conn = psycopg2.connect(host=self.__HOST, database=self.__DATABASE, user=self.__USER, password=self.__PASSWORD)
+        cursor = conn.cursor()
+        cursor.execute('DROP SCHEMA IF EXISTS gcis CASCADE;')
+        conn.commit()
+
+        cursor.close
+        conn.close()
+
     def load_climate_data(self):
         path = self.__INPUT_DIRECTORY
-        for file in os.listdir(path):     # loop through files
-            if re.match(r'^.*(.csv.gz)$', file):    # get all csv.gz files
-                with gzip.open('{path}/{file}'.format(path=path, file=file), 'rb') as f:    # open the file
-                    count = 0         # keeps track of number insert statements created
+        for file in os.listdir(path):  # loop through GHCN climate files
+            if re.match(r'^.*(.csv.gz)$', file):  # get all csv.gz files
+                with gzip.open('{path}/{file}'.format(path=path, file=file), 'rb') as f:  # open the file
+                    count = 0  # keeps track of number insert statements created
                     insertBlock = ''
 
                     for line in f:
@@ -294,7 +94,8 @@ class dataLoader:
                             if element in self.__ELEMENTS:
                                 stationID = line[0]
                                 rawDate = line[1]
-                                climateDate = '{year}-{month}-{day}'.format(year=rawDate[:4], month=rawDate[4:6], day=rawDate[6:8])
+                                climateDate = '{year}-{month}-{day}'.format(year=rawDate[:4], month=rawDate[4:6],
+                                                                            day=rawDate[6:8])
                                 value = line[3]
 
                                 insertBlock += """INSERT INTO gcis."Climate" ("StationID", "DATE", "ELEMENT", "VALUE")\
@@ -305,12 +106,13 @@ class dataLoader:
                                     val=value
                                 )
 
+                                # if 1000000 inserts have been created, load the data (prevents overflow)
                                 if count < 100000:
                                     count += 1
                                 else:
                                     self.pushClimateToDB(insertBlock)
-                                    insertBlock = ''
-                                    count = 0
+                                    insertBlock = ''  # reset insertBlock to empty
+                                    count = 0  # reset count of insert statements
 
             print('{} successfully loaded to GCIS Database'.format(file))
 
@@ -391,8 +193,8 @@ class dataLoader:
             gLon = row[4]
             gElev = row[5]  # None if row[5].upper() == 'NULL' else row[5]
 
-
-            inserts += """INSERT INTO gcis."Geoname" ("GeonameID", "LocationName", "CountryID", "Latitude", "Longitude", "Elevation")\
+            inserts += """\
+            INSERT INTO gcis."Geoname" ("GeonameID", "LocationName", "CountryID", "Latitude", "Longitude", "Elevation")\
              VALUES ({id}, {loc}, {country}, {lat}, {lon}, {elev});\n""".format(
                 id=geonameID, loc=gLoc, country=gCountry, lat=gLat, lon=gLon, elev=gElev
             )

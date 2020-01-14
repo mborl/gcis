@@ -21,9 +21,11 @@ def main():
             -u [local/db]
                 local: update local ghcn files
                 db: update Postgres GCIS database
+            -r [simple/full]
+                simple: drop GCIS schema and rebuild (without data load)
+                full: drop GCIS schema, rebuild, and reload data to tables (will not update local repository).
         """
         gcis_instance = gcis()
-        # Initial Data Load 
         if str(args[0]) == '-h':
             print(HELP_MESSAGE)
 
@@ -36,13 +38,23 @@ def main():
             elif args[1] == 'db':
                 gcis_instance.update_db()
 
+        elif args[0] == '-r':
+            if args[1] == 'simple':
+                gcis_instance.rebuild_simple()
+            elif args[1] == 'full':
+                gcis_instance.rebuild_full()  # populate tables
+
     except getopt.error as argError:
         print(str(argError))
         print(HELP_MESSAGE)
         print('arg')
 
+    except IndexError:
+        print(HELP_MESSAGE)
+
     except KeyboardInterrupt:
         print(' Process killed by user')
+
 
 if __name__ == "__main__":
     main()
